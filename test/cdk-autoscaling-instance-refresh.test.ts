@@ -1,17 +1,23 @@
-// import * as cdk from 'aws-cdk-lib';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as CdkAutoscalingInstanceRefresh from '../lib/cdk-autoscaling-instance-refresh-stack';
+import { App } from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { CdkAutoscalingInstanceRefreshStack } from '../lib/cdk-autoscaling-instance-refresh-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/cdk-autoscaling-instance-refresh-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new CdkAutoscalingInstanceRefresh.CdkAutoscalingInstanceRefreshStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
-
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+describe('CdkAutoscalingInstanceRefreshStack', () => {
+	it('matches the snapshot', () => {
+		const app = new App();
+		const stack = new CdkAutoscalingInstanceRefreshStack(
+			app,
+			'CdkAutoscalingInstanceRefreshStack',
+			{
+				stack: 'playground',
+				stage: 'PROD',
+				app: 'asg-instance-refresh',
+				env: {
+					region: 'eu-west-1',
+				},
+				buildIdentifier: 'ABC',
+			},
+		);
+		expect(Template.fromStack(stack).toJSON()).toMatchSnapshot();
+	});
 });

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -e
+
+watch "curl --silent https://asg-instance-refresh.gutools.co.uk | jq ."

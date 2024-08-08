@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# This script attempts to emulate the calls Riff-Raff would make when deploying.
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR=${DIR}/..
+
+# Choose either ABC or XYZ
+VERSION=$1
+
+export GU_BUILD_IDENTIFIER=$VERSION
+
+"$ROOT_DIR/script/upload-artifact" "$GU_BUILD_IDENTIFIER"
+"$ROOT_DIR/script/cloudformation"
+"$ROOT_DIR/script/instance-refresh"

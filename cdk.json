@@ -1,5 +1,6 @@
 {
   "app": "npx ts-node --prefer-ts-exts bin/cdk-autoscaling-instance-refresh.ts",
+  "profile": "developerPlayground",
   "watch": {
     "include": [
       "**"
@@ -13,7 +14,8 @@
       "package*.json",
       "yarn.lock",
       "node_modules",
-      "test"
+      "test",
+      "script"
     ]
   },
   "context": {

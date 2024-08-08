@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# This script updates the CloudFormation stack.
+
+set -e
+
+npx cdk deploy

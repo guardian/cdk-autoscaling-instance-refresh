@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+# This script starts an instance refresh.
+
+set -e
+
+STACK_INFO=$(
+  aws cloudformation describe-stacks \
+    --stack-name CdkAutoscalingInstanceRefreshStack \
+    --profile developerPlayground \
+    --region eu-west-1 \
+    --no-cli-pager
+)
+
+ASG_NAME=$(
+  echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("AutoScalingGroup") ] | any) | .OutputValue'
+)
+
+LAUNCH_TEMPLATE_ID=$(
+  echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("LaunchTemplateId") ] | any) | .OutputValue'
+)
+
+LAUNCH_TEMPLATE_VERSION=$(
+  echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("LaunchTemplateLatestVersion") ] | any) | .OutputValue'
+)
+
+REFRESH_ID=$(
+  aws autoscaling start-instance-refresh \
+    --auto-scaling-group-name "$ASG_NAME" \
+    --preferences '{"InstanceWarmup": 60, "MinHealthyPercentage": 100, "MaxHealthyPercentage": 200, "SkipMatching": true }' \
+    --desired-configuration "{\"LaunchTemplate\": {\"LaunchTemplateId\": \"$LAUNCH_TEMPLATE_ID\", \"Version\": \"$LAUNCH_TEMPLATE_VERSION\" }}" \
+    --profile developerPlayground \
+    --region eu-west-1 \
+    --no-cli-pager | \
+    jq -r '.InstanceRefreshId'
+)
+
+echo "Refresh ID: $REFRESH_ID"
+
+REFRESH_INFO=$(
+  aws autoscaling describe-instance-refreshes \
+    --auto-scaling-group-name "$ASG_NAME" \
+    --instance-refresh-ids "$REFRESH_ID" \
+    --profile developerPlayground \
+    --region eu-west-1 \
+    --no-cli-pager
+)
+
+REFRESH_STATUS=$(echo "$REFRESH_INFO" | jq -r '.InstanceRefreshes[].Status')
+
+until [ "$REFRESH_STATUS" == "Successful" ]; do
+  echo "Status: $REFRESH_STATUS"
+
+  echo ""
+  echo "$REFRESH_INFO"
+  echo ""
+
+  echo "Sleeping for 5 seconds..."
+  sleep 5
+
+  REFRESH_INFO=$(
+    aws autoscaling describe-instance-refreshes \
+      --auto-scaling-group-name "$ASG_NAME" \
+      --instance-refresh-ids "$REFRESH_ID" \
+      --profile developerPlayground \
+      --region eu-west-1 \
+      --no-cli-pager
+  )
+
+  REFRESH_STATUS=$(echo "$REFRESH_INFO" | jq -r '.InstanceRefreshes[].Status')
+done
+
+echo "Status: $REFRESH_STATUS"
+echo "Done"

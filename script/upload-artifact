@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# This script uploads the application artifact to S3.
+# In this POC, we're not building an artifact, we're simply copying one produced by https://github.com/guardian/cdk-playground.
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR=${DIR}/..
+
+# Choose either ABC or XYZ
+VERSION=$1
+
+aws s3 cp \
+  "$ROOT_DIR/dist/asg-instance-refresh-$VERSION.deb" \
+  "s3://developer-playground-dist/playground/PROD/asg-instance-refresh/asg-instance-refresh-$VERSION.deb" \
+  --profile developerPlayground \
+  --region eu-west-1 \
+  --no-cli-pager
