@@ -40,7 +40,10 @@ import {
 } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 
-export type BuildIdentifier = 'ABC' | 'XYZ';
+export type BuildIdentifier =
+	| 'ABC' // This version has a working healthcheck
+	| 'XYZ' // This version has a working healthcheck
+	| '500'; // This version has a failing healthcheck
 
 interface CdkAutoscalingInstanceRefreshStackProps extends GuStackProps {
 	app: string;
