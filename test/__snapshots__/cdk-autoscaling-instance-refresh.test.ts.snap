@@ -243,6 +243,9 @@ exports[`CdkAutoscalingInstanceRefreshStack matches the snapshot 1`] = `
             "Ref": "TargetGroup3D7CD9B8",
           },
         ],
+        "TerminationPolicies": [
+          "NewestInstance",
+        ],
         "VPCZoneIdentifier": {
           "Ref": "PrivateSubnets",
         },

@@ -19,6 +19,7 @@ import {
 	AutoScalingGroup,
 	GroupMetrics,
 	HealthCheck,
+	TerminationPolicy,
 } from 'aws-cdk-lib/aws-autoscaling';
 import type { MachineImageConfig } from 'aws-cdk-lib/aws-ec2';
 import {
@@ -146,6 +147,9 @@ export class CdkAutoscalingInstanceRefreshStack extends GuStack {
 				grace: Duration.minutes(2),
 			}),
 			defaultInstanceWarmup: Duration.seconds(0),
+
+			// Remove the newest instance first, on the basis that we're cancelling a deployment as the new version is unhealthy.
+			terminationPolicies: [TerminationPolicy.NEWEST_INSTANCE],
 		});
 
 		// Tags for application log shipping
