@@ -7,11 +7,119 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=${DIR}/..
 
-# Choose either ABC or XYZ
+# Choose either ABC or XYZ or 500
 VERSION=$1
 
-export GU_BUILD_IDENTIFIER=$VERSION
+## DEPLOY
+# Upload artifact
+# Download current CloudFormation template
+# Update CloudFormation stack
+# Start instance refresh
+# Poll for status = Success for 15 minutes
 
-"$ROOT_DIR/script/upload-artifact" "$GU_BUILD_IDENTIFIER"
-"$ROOT_DIR/script/cloudformation"
-"$ROOT_DIR/script/instance-refresh"
+## ROLLBACK
+# Cancel instance refresh
+# Apply old CloudFormation template
+# Start instance refresh
+# Poll for status = Success for 15 minutes
+# Exit
+
+CLOUDFORMATION_STACK_NAME=CdkAutoscalingInstanceRefreshStack
+
+export AWS_DEFAULT_REGION=eu-west-1
+export AWS_PROFILE=developerPlayground
+export AWS_PAGER=""
+
+TEMP_DIR=$ROOT_DIR/temp
+
+mkdir -p "$TEMP_DIR"
+
+TIMEOUT=30
+
+function exitTrap(){
+  EXIT_CODE=$?
+
+  if [[ $EXIT_CODE -eq 62 ]]; then
+    echo "Deployment status: Failed (timeout)"
+  elif [[ $EXIT_CODE -eq 0 ]]; then
+    echo "Deployment status: Success"
+  else
+    echo "Exit code: $EXIT_CODE"
+  fi
+
+  echo "👋 Bye!"
+}
+
+trap exitTrap EXIT
+
+uploadArtifact() {
+  aws s3 cp \
+    "$ROOT_DIR/dist/asg-instance-refresh-$VERSION.deb" \
+    "s3://developer-playground-dist/playground/PROD/asg-instance-refresh/asg-instance-refresh-$VERSION.deb"
+}
+
+downloadCloudformationTemplate() {
+  aws cloudformation get-template \
+    --stack-name $CLOUDFORMATION_STACK_NAME \
+    | jq -r .TemplateBody \
+    > "$TEMP_DIR/cloudformation-template"
+}
+
+updateCloudformation() {
+  GU_BUILD_IDENTIFIER=$VERSION npx cdk deploy
+}
+
+startInstanceRefresh() {
+  STACK_INFO=$(aws cloudformation describe-stacks --stack-name $CLOUDFORMATION_STACK_NAME)
+  ASG_NAME=$(echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("AutoScalingGroup") ] | any) | .OutputValue')
+  LAUNCH_TEMPLATE_ID=$(echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("LaunchTemplateId") ] | any) | .OutputValue')
+  LAUNCH_TEMPLATE_VERSION=$(echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("LaunchTemplateLatestVersion") ] | any) | .OutputValue')
+
+  aws autoscaling start-instance-refresh \
+      --auto-scaling-group-name "$ASG_NAME" \
+      --preferences '{ "MinHealthyPercentage": 100, "MaxHealthyPercentage": 200, "SkipMatching": true }' \
+      --desired-configuration "{\"LaunchTemplate\": {\"LaunchTemplateId\": \"$LAUNCH_TEMPLATE_ID\", \"Version\": \"$LAUNCH_TEMPLATE_VERSION\" }}" \
+      | jq -r '.InstanceRefreshId'
+}
+
+pollInstanceRefresh() {
+  REFRESH_ID=$1
+
+  STACK_INFO=$(aws cloudformation describe-stacks --stack-name $CLOUDFORMATION_STACK_NAME)
+  ASG_NAME=$(echo "$STACK_INFO" | jq -r '.Stacks[].Outputs[] | select( [.OutputKey | contains("AutoScalingGroup") ] | any) | .OutputValue')
+  REFRESH_INFO=$(
+    aws autoscaling describe-instance-refreshes \
+      --auto-scaling-group-name "$ASG_NAME" \
+      --instance-refresh-ids "$REFRESH_ID"
+  )
+  REFRESH_STATUS=$(echo "$REFRESH_INFO" | jq -r '.InstanceRefreshes[].Status')
+
+  END_TIME=$((SECONDS+TIMEOUT))
+  while [ "$REFRESH_STATUS" != "Successful" ] && [ $SECONDS -lt $END_TIME ]; do
+    echo "Refresh status: $REFRESH_STATUS"
+    sleep 5
+
+    REFRESH_INFO=$(
+      aws autoscaling describe-instance-refreshes \
+        --auto-scaling-group-name "$ASG_NAME" \
+        --instance-refresh-ids "$REFRESH_ID"
+    )
+
+    REFRESH_STATUS=$(echo "$REFRESH_INFO" | jq -r '.InstanceRefreshes[].Status')
+  done
+
+  echo "Refresh status: $REFRESH_STATUS"
+  if [ "$REFRESH_STATUS" != "Successful" ]; then
+    exit 62
+  fi
+}
+
+deploy() {
+#  uploadArtifact
+#  downloadCloudformationTemplate
+#  updateCloudformation
+  REFRESH_ID=$(startInstanceRefresh)
+  pollInstanceRefresh "$REFRESH_ID"
+}
+
+deploy
