@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "CommonJS"
   },
-  "include": ["bin/**/*", "lib/**/*", "test/**/*"],
+  "include": ["bin/**/*", "lib/**/*", "test/**/*", "script/**/*"],
   "exclude": [
     "node_modules",
     "cdk.out",

@@ -10,9 +10,12 @@
     "test": "jest",
     "cdk": "cdk",
     "format": "prettier --write \"{lib,bin,test}/**/*.ts\"",
-    "lint": "eslint lib/** bin/** test/** --ext .ts --no-error-on-unmatched-pattern"
+    "lint": "eslint lib/** bin/** test/** --ext .ts --no-error-on-unmatched-pattern",
+    "deploy": "npx ts-node --prefer-ts-exts script/deploy.ts"
   },
   "devDependencies": {
+    "@aws-sdk/credential-providers": "3.624.0",
+    "@aws-sdk/client-cloudformation": "3.624.0",
     "@guardian/cdk": "59.2.3",
     "@guardian/eslint-config-typescript": "11.0.0",
     "@guardian/prettier": "8.0.1",
@@ -24,6 +27,7 @@
     "constructs": "10.3.0",
     "eslint": "8.57.0",
     "eslint-plugin-prettier": "5.2.1",
+    "execa": "9.3.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.5",
     "ts-node": "^10.9.2",
